@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log Case Closure — Backlog Dashboard</title>
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0efe9;
+    --border: rgba(0,0,0,0.10);
+    --border-med: rgba(0,0,0,0.18);
+    --text: #1a1a18;
+    --text-muted: #6b6b66;
+    --text-hint: #9a9a94;
+    --blue: #185FA5;
+    --blue-light: #E6F1FB;
+    --teal: #1D9E75;
+    --teal-light: #E1F5EE;
+    --amber: #BA7517;
+    --red: #A32D2D;
+    --red-light: #FCEBEB;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+  .site-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .site-logo { font-size: 16px; font-weight: 600; color: var(--text); letter-spacing: -0.02em; }
+  .site-logo span { color: var(--blue); }
+  .nav-links { display: flex; gap: 4px; align-items: center; }
+  .nav-link { padding: 6px 14px; border-radius: var(--radius-sm); font-size: 13px; color: var(--text-muted); text-decoration: none; transition: background 0.15s; }
+  .nav-link:hover { background: var(--surface2); color: var(--text); }
+  .nav-link.active { background: var(--blue); color: #fff; }
+
+  .page-wrap { max-width: 680px; margin: 0 auto; padding: 36px 24px; }
+  .page-header { margin-bottom: 28px; }
+  .page-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .page-sub { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+
+  .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 32px; }
+  .form-section { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+  .form-section:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-hint); margin-bottom: 16px; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .form-group:last-child { margin-bottom: 0; }
+  label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+  label .req { color: var(--red); margin-left: 2px; }
+  input[type=text], input[type=email], select, textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border-med); border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit; color: var(--text); background: var(--surface);
+    transition: border-color 0.15s, box-shadow 0.15s; outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(24,95,165,0.1); }
+  textarea { resize: vertical; min-height: 110px; }
+  select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6b66' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; }
+
+  .outcome-options { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 4px; }
+  .outcome-opt { border: 1px solid var(--border-med); border-radius: var(--radius-sm); padding: 10px 12px; cursor: pointer; transition: all 0.15s; text-align: center; user-select: none; }
+  .outcome-opt:hover { border-color: var(--blue); background: var(--blue-light); }
+  .outcome-opt.selected { border-color: var(--blue); background: var(--blue-light); font-weight: 600; color: var(--blue); }
+  .outcome-opt input { display: none; }
+  .outcome-opt span { font-size: 12px; display: block; }
+  .outcome-opt .oo-icon { font-size: 20px; margin-bottom: 4px; }
+
+  .char-count { font-size: 11px; color: var(--text-hint); text-align: right; margin-top: 2px; }
+
+  .submit-row { display: flex; align-items: center; gap: 14px; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
+  .btn-submit { flex: 1; padding: 11px 20px; background: var(--blue); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; font-family: inherit; }
+  .btn-submit:hover { background: #0C447C; }
+  .btn-submit:disabled { background: var(--text-hint); cursor: not-allowed; }
+  .btn-reset { padding: 11px 16px; background: transparent; border: 1px solid var(--border-med); border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; color: var(--text-muted); font-family: inherit; transition: background 0.15s; }
+  .btn-reset:hover { background: var(--surface2); }
+
+  .toast { position: fixed; bottom: 28px; right: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); max-width: 340px; transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 999; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .toast-body { font-size: 12px; color: var(--text-muted); }
+  .toast-success .toast-title { color: var(--teal); }
+  .toast-error .toast-title { color: var(--red); }
+
+  .field-error { font-size: 11px; color: var(--red); margin-top: 3px; display: none; }
+  input.invalid, select.invalid, textarea.invalid { border-color: var(--red); }
+
+  .sp-config { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px; margin-bottom: 24px; }
+  .sp-config p { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+  .sp-config input { font-size: 12px; }
+  .sp-note { font-size: 11px; color: var(--text-hint); margin-top: 6px; }
+
+  .submissions-panel { margin-top: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .sp-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .sp-header h3 { font-size: 14px; font-weight: 600; }
+  .sp-actions { display: flex; gap: 8px; }
+  .btn-sm { padding: 5px 12px; font-size: 11px; font-weight: 600; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--border-med); background: var(--surface); color: var(--text); font-family: inherit; transition: background 0.15s; }
+  .btn-sm:hover { background: var(--surface2); }
+  .btn-sm-blue { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .btn-sm-blue:hover { background: #0C447C; }
+  .sub-table-wrap { overflow-x: auto; }
+  .sub-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .sub-table th { background: var(--surface2); padding: 8px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-hint); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .sub-table td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .sub-table tr:last-child td { border-bottom: none; }
+  .sub-table tr:hover td { background: var(--surface2); }
+  .empty-state { padding: 32px; text-align: center; color: var(--text-hint); font-size: 13px; }
+
+  @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } .outcome-options { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-logo">Backlog <span>Dashboard</span></div>
+  <nav class="nav-links">
+    <a href="index.html" class="nav-link">Dashboard</a>
+    <a href="submit.html" class="nav-link active">Log Case Closure</a>
+  </nav>
+</header>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title">Log a Case Closure</div>
+    <div class="page-sub">Record how you resolved an aging case. Your submission is stored locally and can be exported as CSV for upload to SharePoint, or submitted directly if your SharePoint list URL is configured below.</div>
+  </div>
+
+  <div class="sp-config">
+    <p><strong>SharePoint / OneDrive upload target</strong> — paste your SharePoint List REST API endpoint below. Leave blank to use local storage + CSV export only.</p>
+    <input type="text" id="spUrl" placeholder="https://yourorg.sharepoint.com/sites/yoursite/_api/web/lists/getbytitle('BacklogClosures')/items" />
+    <div class="sp-note">📋 How to get this URL: SharePoint site → List settings → copy the list URL → append /_api/web/lists/getbytitle('ListName')/items</div>
+  </div>
+
+  <div class="form-card">
+    <form id="closureForm" novalidate>
+
+      <div class="form-section">
+        <div class="section-label">Case identification</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="caseNumber">Case Number <span class="req">*</span></label>
+            <input type="text" id="caseNumber" placeholder="e.g. 229616" autocomplete="off">
+            <div class="field-error" id="err-caseNumber">Please enter a case number.</div>
+          </div>
+          <div class="form-group">
+            <label for="closureDate">Date of Closure <span class="req">*</span></label>
+            <input type="text" id="closureDate" placeholder="DD/MM/YYYY" id="closureDate">
+            <div class="field-error" id="err-closureDate">Please enter the closure date.</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="productName">Product Name <span class="req">*</span></label>
+            <select id="productName">
+              <option value="">— Select product —</option>
+              <option>publiFund</option>
+              <option>Fundipedia</option>
+              <option>e-File</option>
+              <option>Plus Documents</option>
+              <option>Fundinfo.com</option>
+              <option>Plus Digital</option>
+              <option>FundConnect - Web Solutions</option>
+              <option>Fundinfo Access</option>
+              <option>FSQ RS</option>
+              <option>FundConnect Document Production</option>
+              <option>Fundinfo Web Publishing Service</option>
+              <option>fundinfo Feeds</option>
+              <option>AIFMD Reporting</option>
+              <option>KiiHUB</option>
+              <option>Web Tools</option>
+              <option>Other</option>
+            </select>
+            <div class="field-error" id="err-productName">Please select a product.</div>
+          </div>
+          <div class="form-group">
+            <label for="caseRecordType">Case Record Type <span class="req">*</span></label>
+            <select id="caseRecordType">
+              <option value="">— Select type —</option>
+              <option>Client Support</option>
+              <option>Change Request</option>
+              <option>Service</option>
+              <option>Fusion BI</option>
+              <option>Customer Communications</option>
+              <option>Incident Case Record</option>
+              <option>Internal Escalation</option>
+            </select>
+            <div class="field-error" id="err-caseRecordType">Please select the record type.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="section-label">Resolution details</div>
+        <div class="form-group">
+          <label>Outcome <span class="req">*</span></label>
+          <div class="outcome-options" id="outcomeOptions">
+            <label class="outcome-opt" onclick="selectOutcome(this,'Resolved')">
+              <input type="radio" name="outcome" value="Resolved">
+              <span class="oo-icon">✅</span>
+              <span>Resolved</span>
+            </label>
+            <label class="outcome-opt" onclick="selectOutcome(this,'Closed – No Action')">
+              <input type="radio" name="outcome" value="Closed – No Action">
+              <span class="oo-icon">🚫</span>
+              <span>Closed – No Action</span>
+            </label>
+            <label class="outcome-opt" onclick="selectOutcome(this,'Escalated')">
+              <input type="radio" name="outcome" value="Escalated">
+              <span class="oo-icon">⬆️</span>
+              <span>Escalated</span>
+            </label>
+            <label class="outcome-opt" onclick="selectOutcome(this,'Merged')">
+              <input type="radio" name="outcome" value="Merged">
+              <span class="oo-icon">🔀</span>
+              <span>Merged</span>
+            </label>
+            <label class="outcome-opt" onclick="selectOutcome(this,'Pending Customer')">
+              <input type="radio" name="outcome" value="Pending Customer">
+              <span class="oo-icon">⏳</span>
+              <span>Pending Customer</span>
+            </label>
+            <label class="outcome-opt" onclick="selectOutcome(this,'Other')">
+              <input type="radio" name="outcome" value="Other">
+              <span class="oo-icon">📝</span>
+              <span>Other</span>
+            </label>
+          </div>
+          <div class="field-error" id="err-outcome">Please select an outcome.</div>
+        </div>
+        <div class="form-group" style="margin-top:16px;">
+          <label for="description">How was this case managed / resolved? <span class="req">*</span></label>
+          <textarea id="description" placeholder="Describe the steps taken, root cause identified, resolution provided, or reason for closure…" maxlength="1000" oninput="updateCharCount()"></textarea>
+          <div class="char-count"><span id="charCount">0</span> / 1000</div>
+          <div class="field-error" id="err-description">Please provide a description (minimum 20 characters).</div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="section-label">Your details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="submitterName">Your Name <span class="req">*</span></label>
+            <input type="text" id="submitterName" placeholder="Full name">
+            <div class="field-error" id="err-submitterName">Please enter your name.</div>
+          </div>
+          <div class="form-group">
+            <label for="submitterEmail">Your Email</label>
+            <input type="email" id="submitterEmail" placeholder="you@company.com">
+          </div>
+        </div>
+      </div>
+
+      <div class="submit-row">
+        <button type="button" class="btn-reset" onclick="resetForm()">Clear form</button>
+        <button type="button" class="btn-submit" id="submitBtn" onclick="submitForm()">Submit closure log</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="submissions-panel" id="submissionsPanel" style="display:none;">
+    <div class="sp-header">
+      <h3>Submissions this session (<span id="subCount">0</span>)</h3>
+      <div class="sp-actions">
+        <button class="btn-sm btn-sm-blue" onclick="exportCSV()">⬇ Export CSV for SharePoint</button>
+        <button class="btn-sm" onclick="clearSessions()">Clear</button>
+      </div>
+    </div>
+    <div class="sub-table-wrap">
+      <table class="sub-table">
+        <thead>
+          <tr>
+            <th>Case #</th>
+            <th>Product</th>
+            <th>Record Type</th>
+            <th>Outcome</th>
+            <th>Submitted by</th>
+            <th>Date Closed</th>
+          </tr>
+        </thead>
+        <tbody id="subTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <div class="toast-title" id="toastTitle"></div>
+  <div class="toast-body" id="toastBody"></div>
+</div>
+
+<script>
+let sessions = JSON.parse(localStorage.getItem('backlog_submissions') || '[]');
+let selectedOutcome = '';
+
+function selectOutcome(el, val) {
+  document.querySelectorAll('.outcome-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedOutcome = val;
+}
+
+function updateCharCount() {
+  document.getElementById('charCount').textContent = document.getElementById('description').value.length;
+}
+
+function today() {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('closureDate').value = today();
+  renderSubmissions();
+});
+
+function validate() {
+  const required = ['caseNumber','closureDate','productName','caseRecordType','description','submitterName'];
+  let ok = true;
+  required.forEach(id => {
+    const el = document.getElementById(id);
+    const err = document.getElementById('err-'+id);
+    const val = el.value.trim();
+    const empty = !val || (id==='description' && val.length < 20);
+    el.classList.toggle('invalid', empty);
+    if (err) err.style.display = empty ? 'block' : 'none';
+    if (empty) ok = false;
+  });
+  const oe = document.getElementById('err-outcome');
+  oe.style.display = !selectedOutcome ? 'block' : 'none';
+  if (!selectedOutcome) ok = false;
+  return ok;
+}
+
+async function submitForm() {
+  if (!validate()) return;
+  const row = {
+    timestamp: new Date().toISOString(),
+    caseNumber: document.getElementById('caseNumber').value.trim(),
+    closureDate: document.getElementById('closureDate').value.trim(),
+    productName: document.getElementById('productName').value,
+    caseRecordType: document.getElementById('caseRecordType').value,
+    outcome: selectedOutcome,
+    description: document.getElementById('description').value.trim(),
+    submitterName: document.getElementById('submitterName').value.trim(),
+    submitterEmail: document.getElementById('submitterEmail').value.trim(),
+  };
+
+  const spUrl = document.getElementById('spUrl').value.trim();
+  if (spUrl) {
+    try {
+      const resp = await fetch(spUrl, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json;odata=nometadata', 'Content-Type': 'application/json;odata=nometadata' },
+        body: JSON.stringify({
+          Title: row.caseNumber,
+          CaseNumber: row.caseNumber,
+          ClosureDate: row.closureDate,
+          ProductName: row.productName,
+          CaseRecordType: row.caseRecordType,
+          Outcome: row.outcome,
+          Description: row.description,
+          SubmittedBy: row.submitterName,
+          SubmitterEmail: row.submitterEmail,
+        })
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      showToast('success','Submitted to SharePoint','Case closure logged and saved to your SharePoint list.');
+    } catch(e) {
+      showToast('error','SharePoint upload failed',e.message + ' — saved locally instead. Export CSV to upload manually.');
+    }
+  } else {
+    showToast('success','Saved locally','Export CSV to upload to SharePoint when ready.');
+  }
+
+  sessions.push(row);
+  localStorage.setItem('backlog_submissions', JSON.stringify(sessions));
+  renderSubmissions();
+  resetForm();
+}
+
+function resetForm() {
+  document.getElementById('closureForm').reset();
+  document.querySelectorAll('.outcome-opt').forEach(o => o.classList.remove('selected'));
+  document.querySelectorAll('.invalid').forEach(e => e.classList.remove('invalid'));
+  document.querySelectorAll('.field-error').forEach(e => e.style.display='none');
+  selectedOutcome = '';
+  document.getElementById('charCount').textContent = '0';
+  document.getElementById('closureDate').value = today();
+}
+
+function clearSessions() {
+  if (!confirm('Clear all local submissions? This cannot be undone.')) return;
+  sessions = [];
+  localStorage.removeItem('backlog_submissions');
+  renderSubmissions();
+}
+
+function renderSubmissions() {
+  const panel = document.getElementById('submissionsPanel');
+  const tbody = document.getElementById('subTbody');
+  document.getElementById('subCount').textContent = sessions.length;
+  if (sessions.length === 0) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  tbody.innerHTML = [...sessions].reverse().map(r => `
+    <tr>
+      <td style="font-weight:600">${r.caseNumber}</td>
+      <td>${r.productName}</td>
+      <td>${r.caseRecordType}</td>
+      <td>${r.outcome}</td>
+      <td>${r.submitterName}</td>
+      <td>${r.closureDate}</td>
+    </tr>`).join('');
+}
+
+function exportCSV() {
+  if (!sessions.length) return;
+  const headers = ['Timestamp','CaseNumber','ClosureDate','ProductName','CaseRecordType','Outcome','Description','SubmittedBy','SubmitterEmail'];
+  const rows = sessions.map(r => headers.map(h => {
+    const k = h.charAt(0).toLowerCase()+h.slice(1);
+    const v = r[k] || r[h] || '';
+    return `"${String(v).replace(/"/g,'""')}"`;
+  }).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type:'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `BacklogClosures_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function showToast(type, title, body) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastTitle').textContent = title;
+  document.getElementById('toastBody').textContent = body;
+  t.className = 'toast toast-'+type+' show';
+  setTimeout(() => t.className = 'toast', 4000);
+}
+</script>
+</body>
+</html>
